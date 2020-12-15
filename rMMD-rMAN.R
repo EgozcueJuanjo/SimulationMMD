@@ -48,24 +48,31 @@ rMMD <- function(nsam,M,N,p,optran=0,pardist=NULL){
 ############################################
 
 ############################################
-# function simulating the distribution MAN
-# Multinomial-Asymptotic Normal
+# function simulating the distribution MAN 
+# Multinomial-Asymptotic Normal 
 # input:
 #  nsam number of samples to be computed
-#  M  number of trials in the multinomial sampling
-#  p  multinomial probabilities in the first
+#  M  number of trials in the first multinomial sampling
+#  N  number of trials in a fictitious second sampling
+#     defaults in 10000
+#  p  multinomial probabilities in the first 
 #     multinomial sampling. Its length define the
 #     number of features considered D=length(p)
-# output:
+#  As M decreases, the number of zeros increasses
+#  N only controls the size of the variance matrix,
+#  it should be enough for asymptotic conditions in a
+#  multinomial sampling with probabilities p. 
+# output: 
 #  simp  (nsam,D)-matrix containing the nsam simulated
 #        samples expressed in proportions, including
 #        zeros produced in the first sampling.
 # uses R-libraries "nnet" and "MAS"
-#      auxiliary function "buildCM"
+#      auxiliary function "buildCM" 
 #####################################################
 # written by JJ Egozcue, May 2020
+# modified in December 2020
 #####################################################
-rMAN <- function(nsam,M,p){
+rMAN <- function(nsam,M,N=10000,p){
   library(nnet)
   library(MASS)
   #  first multinomial sampling
@@ -78,15 +85,15 @@ rMAN <- function(nsam,M,p){
   # loop for samples (as many as nsam)
   simp <- matrix(0,nrow=nsam,ncol=D)
   for(isim in 1:nsam){
-    fz <- (q[isim,]!=0)   # position of non zero
+    fz <- (q[isim,]!=0)   # position of non zero features
     d <- sum(fz==TRUE)  # features in second sampling
     d1 <- d-1
     if(d1<=0){print(c("d-1 error",d))}
-    # build contast matrix (depends on number zeros)
+    # build contast matrix (depends on number of zeros)
     V <- buildCM(d)
     # ilr mean and variance
     ilrqmean <- t(V) %*% as.matrix(log(q[isim,fz==TRUE]))
-    Sig <- t(V) %*% diag(1/q[isim,fz==TRUE])%*% V
+    Sig <- (t(V) %*% diag(1/q[isim,fz==TRUE])%*% V)/N
     # normal simulation
     ilrsim <- mvrnorm(n=1,mu=ilrqmean,Sigma=Sig)
     # back to proportions, ilr^(-1)
@@ -97,6 +104,9 @@ rMAN <- function(nsam,M,p){
   }
   return(simp)
 }
+###################################################
+
+
 ############################################
 # buildCM builds a (d,d-1)-contrast matrix
 # for ilr coordinates
@@ -121,7 +131,7 @@ pseqnc <- seq(from=1,to=1000,length=103); spseq<- sum(pseqnc)
 pseq <- pseqnc/spseq
 simMMD <- rMMD(nsam=180,M=100,N=5500,p=pseq,optran=2,
                  pardist=c(5500,800,20000) )  
-simMAN <- rMAN(nsam=180,M=100,p=pseq)
+simMAN <- rMAN(nsam=180,M=100,N=5500,p=pseq)
 # zero patterns (use R-package zCompositions)
 library(zCompositions)
 zPatterns(X=t(simMMD),label=0)
